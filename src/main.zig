@@ -42,8 +42,9 @@ pub fn main() void {
 
     var outb: [256]u8 = undefined;
     const o = std.fs.cwd().realpath(".", &outb) catch unreachable;
-    const spath = shortenPath(o);
-    arl.appendSlice(spath) catch unreachable;
+    // const spath = shortenPath(o);
+    const sspath = stringPath(al, o);
+    arl.appendSlice(sspath) catch unreachable;
 
     arl.appendSlice("\n> ") catch unreachable;
     const out = std.io.getStdOut().writer();
@@ -60,6 +61,18 @@ fn shortenPath(path: []u8) []const u8 {
     if (res) {
         path[home.len - 1] = '~';
         return path[home.len - 1 ..];
+    }
+    return path;
+}
+
+fn stringPath(al: std.mem.Allocator, path: []const u8) []const u8 {
+    // idk if we need to check for all of this
+    if (std.mem.indexOfAny(u8, path, " \n\t\r") != null) {
+        const new = al.alloc(u8, path.len + 2) catch unreachable;
+        @memcpy(new[1 .. new.len - 1], path);
+        new[0] = '\'';
+        new[new.len - 1] = '\'';
+        return new;
     }
     return path;
 }
