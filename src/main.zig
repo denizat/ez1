@@ -22,17 +22,43 @@ pub fn main() void {
         arl.appendSlice(status) catch unreachable;
     }
 
-    const child = std.process.Child.run(.{
-        .allocator = al,
-        .argv = &.{ "git", "branch", "--show-current" },
-    }) catch unreachable;
-    arl.appendSlice(" (") catch unreachable;
-    arl.appendSlice(child.stdout[0 .. child.stdout.len - 1]) catch unreachable;
-    arl.append(')') catch unreachable;
+    // const child = std.process.Child.run(.{
+    //     .allocator = al,
+    //     .argv = &.{ "git", "branch", "--show-current" },
+    // }) catch unreachable;
+    // arl.appendSlice(" (") catch unreachable;
+    // arl.appendSlice(child.stdout[0 .. child.stdout.len - 1]) catch unreachable;
+    // arl.append(')') catch unreachable;
+
+    const git = getGit(al);
+    if (git) |g| {
+        arl.appendSlice(" (") catch unreachable;
+        arl.appendSlice(g) catch unreachable;
+        arl.append(')') catch unreachable;
+    }
 
     arl.appendSlice("\n> ") catch unreachable;
     const out = std.io.getStdOut().writer();
     out.writeAll(arl.items) catch unreachable;
+}
+
+fn getGit(al: std.mem.Allocator) ?[]const u8 {
+    const cwdp = std.fs.cwd().realpathAlloc(al, ".") catch {
+        return null;
+    };
+    const dir = findDirUpwards(al, cwdp, ".git") orelse {
+        return null;
+    };
+
+    const fileConts = dir.readFileAlloc(al, "HEAD", 100000) catch {
+        return null;
+    };
+    var split = std.mem.split(u8, fileConts, "/");
+    var last: []const u8 = undefined;
+    while (split.next()) |s| {
+        last = s;
+    }
+    return last[0 .. last.len - 1];
 }
 
 // fn findDirUpwards(startDir: std.fs.Dir, name: []const u8) ?std.fs.Dir {
@@ -54,7 +80,8 @@ pub fn main() void {
 
 test "mini test" {
     const al = std.testing.allocator;
-    const path = "/Users/deniztelci/Documents/Repos/ez1/zig-out/bin";
+    const path = "/Users/deniztelci/Documents/Repos";
+    // const path = "/Users/deniztelci/Documents/Repos/ez1/zig-out/bin";
     // const path = try std.fs.cwd().realpathAlloc(al, ".");
     // defer al.free(path);
     const cwd = try std.fs.openDirAbsolute(path, .{});
