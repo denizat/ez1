@@ -7,6 +7,15 @@ pub fn main() void {
     var arl = std.ArrayList(u8).init(al);
     var namebuf: [std.posix.HOST_NAME_MAX]u8 = undefined;
 
+    const tzoffset = -5;
+    const t = std.time.timestamp();
+    const tm = tmfromunix(t, tzoffset);
+    const h = std.fmt.digits2(@intCast(tm.hour));
+    const m = std.fmt.digits2(@intCast(tm.minute));
+    const s = std.fmt.digits2(@intCast(tm.second));
+    const res = std.fmt.allocPrint(al, "{s}:{s}:{s} ", .{ h, m, s }) catch "";
+    arl.appendSlice(res) catch unreachable;
+
     const user = std.posix.getenv("USER") orelse "???";
     arl.appendSlice(user) catch unreachable;
     arl.append('@') catch unreachable;
@@ -24,7 +33,9 @@ pub fn main() void {
     const status = std.posix.getenv("STATUS") orelse "";
     if (status.len > 0 and !std.mem.eql(u8, status, "0")) {
         arl.append(' ') catch unreachable;
+        arl.appendSlice(COLOR_RED) catch unreachable;
         arl.appendSlice(status) catch unreachable;
+        arl.appendSlice(COLOR_RESET) catch unreachable;
     }
 
     arl.append('\n') catch unreachable;
@@ -38,6 +49,9 @@ pub fn main() void {
     const out = std.io.getStdOut().writer();
     out.writeAll(arl.items) catch unreachable;
 }
+// https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+const COLOR_RESET = "\x1b[0m";
+const COLOR_RED = "\x1b[31m";
 
 // WE OWN PATH NOW!!!!
 fn shortenPath(path: []u8) []const u8 {
@@ -120,4 +134,28 @@ fn cat(comptime a: []const u8, comptime b: []const u8) []const u8 {
     }
     const out = buf;
     return &out;
+}
+
+const Tm = struct {
+    hour: i64,
+    minute: i64,
+    second: i64,
+};
+
+fn tmfromunix(u: i64, offset: i4) Tm {
+    var t = std.mem.zeroes(Tm);
+    t.second = @mod(u, std.time.s_per_min);
+    t.minute = @mod(u, std.time.s_per_hour);
+    t.minute = @divFloor(t.minute, 60);
+    t.hour = @mod(u, std.time.s_per_day);
+    t.hour = @divFloor(t.hour, std.time.s_per_hour);
+    t.hour += offset;
+    return t;
+}
+
+test tmfromunix {
+    const ts = 1717429415;
+    const tm = tmfromunix(ts, -5);
+    const expected = Tm{ .hour = 10, .minute = 43, .second = 35 };
+    try std.testing.expectEqual(expected, tm);
 }
