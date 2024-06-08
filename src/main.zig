@@ -12,17 +12,17 @@ pub fn main() void {
     arl.append('@') catch unreachable;
     const hn = std.posix.gethostname(&namebuf) catch unreachable;
     arl.appendSlice(hn) catch unreachable;
-    arl.append(' ') catch unreachable;
 
     const git = getGit(al);
     if (git) |g| {
+        arl.append(' ') catch unreachable;
         arl.appendSlice(" (") catch unreachable;
         arl.appendSlice(g) catch unreachable;
         arl.append(')') catch unreachable;
     }
 
     const status = std.posix.getenv("STATUS") orelse "";
-    if (status.len > 0) {
+    if (status.len > 0 and !std.mem.eql(u8, status, "0")) {
         arl.append(' ') catch unreachable;
         arl.appendSlice(status) catch unreachable;
     }
